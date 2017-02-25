@@ -25,6 +25,7 @@ import ImageOps
 import math
 from numpy import *
 import os
+import random
 import time
 import win32api
 import win32con
@@ -37,8 +38,9 @@ x_pad = 299
 y_pad = 144
 x_size = 768
 y_size = 480
+xy_ratio = x_size / y_size
 
-n_rays = 6
+n_rays = 60
 
 # ------------------
 
@@ -67,10 +69,6 @@ def screen_grab():
 
 # Find the hexagon, triangle, and blocks.
 def assemble():
-
-    ##List of pixel location classe instances.  List element # is ray #.
-
-    ##List of pixel location classe instances.  List is of edge locations.
     
     im = screen_grab()
     
@@ -78,13 +76,16 @@ def assemble():
     # i is the ray counter.
     for i in range(0, n_rays):
         
-        trig_entry = (n_rays * i) / (2 * math.pi)
+        trig_entry = (2 * i * math.pi) / n_rays
+
+        x_start = x_size / 2
+        y_start = y_size / 2 
         
-        x_last = int(round(x_size / 2) + (cos(trig_entry) * round(x_size / 25)))
-        y_last = int(round(y_size / 2) + (sin(trig_entry) * round(y_size / 16)))
+        x_last = int(round(x_start + ((cos(trig_entry) * x_size / 20))))
+        y_last = int(round(y_start + ((sin(trig_entry) * xy_ratio * y_size / 20))))
         
-        x = int(round(x_size / 2) + (cos(trig_entry) * round(x_size / 10)))
-        y = int(round(y_size / 2) + (sin(trig_entry) * round(y_size / 6.4)))
+        x = int(round(x_start + ((cos(trig_entry) * x_size / 5))))
+        y = int(round(y_start + ((sin(trig_entry) * xy_ratio * y_size / 5))))
 
         print '{}:\t({}, {}) --> ({}, {}) {}'.format(i, x_last, y_last, \
                                                       x, y, trig_entry)
@@ -98,6 +99,11 @@ def assemble():
         line = get_line(x_last, y_last, x, y)
         line_length = len(line)
         
+        # ray debug
+        ray_R = int(round(random.random() * 255))
+        ray_G = int(round(random.random() * 255))
+        ray_B = int(round(random.random() * 255))
+        
         # Only search small region of screen.  j is the pixel counter.
         for j in range (1, line_length):
             
@@ -106,22 +112,24 @@ def assemble():
             R, G, B = im.getpixel(line[j])
             
             if j > 1: #debug rays
-                im.putpixel(line[j - 2], (128, 128, 128))
+                im.putpixel(line[j - 2], (ray_R, ray_G, ray_B))
 
             if R_last != R and G_last != G and B_last != B:
                 edge_size = edge_size_last
-                if edge_size < (x_size / 300) and edge_size > 0:
+                if edge_size < (x_size / 275) and edge_size > 0:
                     im.save(os.getcwd() + '\\Snap__' + #debug triangle
                             str(int(time.time())) + '.png')
                     triangle = line[j]
                     print 'The triangle is at {0}.'.format(triangle)
-                    #break
+                    break
                 edge_count += 1
                 edge_size_last = 0
             else:
                 edge_size_last += 1
-        #if triangle != 0:
-            #break
+        if triangle != 0:
+            break
+    im.save(os.getcwd() + '\\Snap__' + #debug rays
+                            str(int(time.time())) + '.png')
     '''
     # Create and traverse rays from triangle, saving edge locations.
     # i is the ray counter.
