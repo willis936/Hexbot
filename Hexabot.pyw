@@ -38,7 +38,7 @@ x_pad = 299
 y_pad = 144
 x_size = 768
 y_size = 480
-xy_ratio = x_size / y_size
+xy_ratio = float(x_size) / y_size
 
 n_rays = 60
 
@@ -72,37 +72,44 @@ def assemble():
     
     im = screen_grab()
     
+    print'ray #\t\tpoints\t\t\ttrig entry'
+    
     # Create and traverse rays from center, saving triangle location.
     # i is the ray counter.
     for i in range(0, n_rays):
-        
-        trig_entry = (2 * i * math.pi) / n_rays
-
-        x_start = x_size / 2
-        y_start = y_size / 2 
-        
-        x_last = int(round(x_start + ((cos(trig_entry) * x_size / 20))))
-        y_last = int(round(y_start + ((sin(trig_entry) * xy_ratio * y_size / 20))))
-        
-        x = int(round(x_start + ((cos(trig_entry) * x_size / 5))))
-        y = int(round(y_start + ((sin(trig_entry) * xy_ratio * y_size / 5))))
-
-        print '{}:\t({}, {}) --> ({}, {}) {}'.format(i, x_last, y_last, \
-                                                      x, y, trig_entry)
 
         triangle = 0
         
         edge_count = 0
-        edge_size = x_size
+        edge_size = 0
         edge_size_last = 0
+        triangle_ping = 0
+        
+        x_start = x_size / 2
+        y_start = y_size / 2
+        
+        trig_entry = (2 * i * math.pi) / n_rays
+        
+        x_last = int(round(x_start + ((cos(trig_entry) * x_size / 35))))
+        y_last = int(round(y_start + ((sin(trig_entry) \
+                                       * xy_ratio * y_size / 35))))
+        
+        x = int(round(x_start + ((cos(trig_entry) * x_size / 7))))
+        y = int(round(y_start + ((sin(trig_entry) \
+                                  * xy_ratio * y_size / 7))))
+
+        print '{}:\t({}, {}) --> ({}, {})\t' \
+            '{}'.format(i, x_last, y_last, x, y, trig_entry)
 
         line = get_line(x_last, y_last, x, y)
         line_length = len(line)
         
         # ray debug
-        ray_R = int(round(random.random() * 255))
-        ray_G = int(round(random.random() * 255))
-        ray_B = int(round(random.random() * 255))
+        ray_R = int(round(255 * float(i) / n_rays))
+        ray_G = int(round(255 - (255 * float(i) / n_rays)))
+        ray_B = int(round(128 + (255 * float(i) / n_rays)))
+        if ray_B > 255:
+            ray_B = int(round(383 - (255 * (float(i) / n_rays))))
         
         # Only search small region of screen.  j is the pixel counter.
         for j in range (1, line_length):
@@ -111,24 +118,40 @@ def assemble():
             
             R, G, B = im.getpixel(line[j])
             
-            if j > 1: #debug rays
+            if j > 1 and n_rays < 120: #debug rays
                 im.putpixel(line[j - 2], (ray_R, ray_G, ray_B))
-
+            
+            # Compare current and last pixel.
             if R_last != R and G_last != G and B_last != B:
+
+                # Update size of current edge and add to edge count.
                 edge_size = edge_size_last
-                if edge_size < (x_size / 275) and edge_size > 0:
-                    im.save(os.getcwd() + '\\Snap__' + #debug triangle
-                            str(int(time.time())) + '.png')
-                    triangle = line[j]
-                    print 'The triangle is at {0}.'.format(triangle)
-                    break
                 edge_count += 1
                 edge_size_last = 0
+                
+                # Check to see if edge is small enough to be the triangle.
+                if edge_size < (x_size / 275) and edge_size > 0 and \
+                   edge_count > 2:
+                    if edge_size < edge_size_last + (.1 * edge_size_last) \
+                    or edge_size > edge_size_last - (.1 * edge_size_last):
+                        triangle_ping += 1
+                        print'ping'
+                        im.putpixel(line[j], (255, 255, 255)) #debug ping
+                        break
+                    else:
+                        if triangle_ping > math.floor(float(n_rays) / 60) and \
+                           triangle_ping < math.ceil(float(n_rays) / 30):
+                            triangle = line[j]
+                            print 'The triangle is at {0}.'.format(triangle)
+                            im.save(os.getcwd() + '\\Snap__' + #debug rays
+                            str(int(time.time())) + '.png')
+                            break
+                        triangle_ping = 0
             else:
                 edge_size_last += 1
         if triangle != 0:
             break
-    im.save(os.getcwd() + '\\Snap__' + #debug rays
+    im.save(os.getcwd() + '\\SnapF_' + #debug rays
                             str(int(time.time())) + '.png')
     '''
     # Create and traverse rays from triangle, saving edge locations.
