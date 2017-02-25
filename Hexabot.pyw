@@ -1,4 +1,5 @@
 """
+---------------------------------------------------------------------------------
 
 Hexabot v1.0
 2013/07/03
@@ -16,6 +17,7 @@ Libraries:
     Pywin32 Build 218 for Python 2.7, 32 bit
     NumPy 1.7.1, 32 bit
 
+---------------------------------------------------------------------------------
 """
 
 import Image
@@ -123,39 +125,47 @@ def assemble():
             
             # Compare current and last pixel.
             if R_last != R and G_last != G and B_last != B:
-
-                # Update size of current edge and add to edge count.
-                edge_size = edge_size_last
-                edge_count += 1
-                edge_size_last = 0
                 
                 # Check edge size past hexagon.
-                if edge_count > 2:
+                if edge_count > 1:
+                    
                     # Ray pinging an edge, compare edge size to last ping.
-                    if edge_size < (edge_size_last * 1.1) \
-                    or edge_size > (edge_size_last * 0.9):
+                    if ((edge_size < (edge_size_last * 1.1) \
+                    or edge_size > (edge_size_last * 0.9))
+                    and edge_size < x_size / 15):
+                        
                         triangle_ping += 1
                         print'ping {}'.format(triangle_ping)
                         #debug ping
                         im.putpixel(line[j], (255 - R, 255 - G, 255 - B))
                         break
-                    # Check to see if the triangle base was pinged.
+                    
+                    # This wasn't the triangle, reset the ping.
                     else:
-                        if triangle_ping >= n_rays / 60 and \
-                           triangle_ping <= n_rays / 15:
+                        print 'ping reset'
+                    triangle_ping = 0
+                    
+                    # Check to see if the triangle base was pinged.
+                    if triangle_ping >= n_rays / 60 and \
+                       triangle_ping <= n_rays / 15:
                             triangle = line[j]
                             print 'The triangle is at {0}.'.format(triangle)
                             im.save(os.getcwd() + '\\Snap__' + #debug rays
                             str(int(time.time())) + '.png')
                             break
-                    # This wasn't the triangle, reset the ping.
-                    print 'ping reset'
-                    triangle_ping = 0
+                
+                # Update size of current edge and add to edge count.
+                edge_size = edge_size_last
+                edge_count += 1
+                edge_size_last = 0
+                
             else:
                 edge_size_last += 1
+                
         # Stop traversing rays after triangle is found.
         if triangle != 0:
             break
+        
     im.save(os.getcwd() + '\\SnapF_' + #debug rays
                             str(int(time.time())) + '.png')
     '''
