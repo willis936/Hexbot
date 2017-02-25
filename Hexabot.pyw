@@ -40,7 +40,7 @@ x_size = 768
 y_size = 480
 xy_ratio = float(x_size) / y_size
 
-n_rays = 60
+n_rays = 360
 
 # ------------------
 
@@ -73,6 +73,8 @@ def assemble():
     im = screen_grab()
     
     print'ray #\t\tpoints\t\t\ttrig entry'
+
+    triangle_ping = 0
     
     # Create and traverse rays from center, saving triangle location.
     # i is the ray counter.
@@ -83,7 +85,6 @@ def assemble():
         edge_count = 0
         edge_size = 0
         edge_size_last = 0
-        triangle_ping = 0
         
         x_start = x_size / 2
         y_start = y_size / 2
@@ -100,16 +101,9 @@ def assemble():
 
         print '{}:\t({}, {}) --> ({}, {})\t' \
             '{}'.format(i, x_last, y_last, x, y, trig_entry)
-
+        
         line = get_line(x_last, y_last, x, y)
         line_length = len(line)
-        
-        # ray debug
-        ray_R = int(round(255 * float(i) / n_rays))
-        ray_G = int(round(255 - (255 * float(i) / n_rays)))
-        ray_B = int(round(128 + (255 * float(i) / n_rays)))
-        if ray_B > 255:
-            ray_B = int(round(383 - (255 * (float(i) / n_rays))))
         
         # Only search small region of screen.  j is the pixel counter.
         for j in range (1, line_length):
@@ -117,9 +111,15 @@ def assemble():
             R_last, G_last, B_last = im.getpixel(line[j - 1])
             
             R, G, B = im.getpixel(line[j])
-            
-            if j > 1 and n_rays < 120: #debug rays
-                im.putpixel(line[j - 2], (ray_R, ray_G, ray_B))
+
+            # ray debug
+            if j > 0 and n_rays < 120:
+                ray_R = int(round(255 * float(i) / n_rays))
+                ray_G = int(round(255 - (255 * float(i) / n_rays)))
+                ray_B = int(round(128 + (255 * float(i) / n_rays)))
+                if ray_B > 255:
+                    ray_B = int(round(383 - (255 * (float(i) / n_rays))))
+                im.putpixel(line[j - 1], (ray_R, ray_G, ray_B))
             
             # Compare current and last pixel.
             if R_last != R and G_last != G and B_last != B:
@@ -129,26 +129,31 @@ def assemble():
                 edge_count += 1
                 edge_size_last = 0
                 
-                # Check to see if edge is small enough to be the triangle.
-                if edge_size < (x_size / 275) and edge_size > 0 and \
-                   edge_count > 2:
-                    if edge_size < edge_size_last + (.1 * edge_size_last) \
-                    or edge_size > edge_size_last - (.1 * edge_size_last):
+                # Check edge size past hexagon.
+                if edge_count > 2:
+                    # Ray pinging an edge, compare edge size to last ping.
+                    if edge_size < (edge_size_last * 1.1) \
+                    or edge_size > (edge_size_last * 0.9):
                         triangle_ping += 1
-                        print'ping'
-                        im.putpixel(line[j], (255, 255, 255)) #debug ping
+                        print'ping {}'.format(triangle_ping)
+                        #debug ping
+                        im.putpixel(line[j], (255 - R, 255 - G, 255 - B))
                         break
+                    # Check to see if the triangle base was pinged.
                     else:
-                        if triangle_ping > math.floor(float(n_rays) / 60) and \
-                           triangle_ping < math.ceil(float(n_rays) / 30):
+                        if triangle_ping >= n_rays / 60 and \
+                           triangle_ping <= n_rays / 15:
                             triangle = line[j]
                             print 'The triangle is at {0}.'.format(triangle)
                             im.save(os.getcwd() + '\\Snap__' + #debug rays
                             str(int(time.time())) + '.png')
                             break
-                        triangle_ping = 0
+                    # This wasn't the triangle, reset the ping.
+                    print 'ping reset'
+                    triangle_ping = 0
             else:
                 edge_size_last += 1
+        # Stop traversing rays after triangle is found.
         if triangle != 0:
             break
     im.save(os.getcwd() + '\\SnapF_' + #debug rays
