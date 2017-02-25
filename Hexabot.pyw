@@ -1,8 +1,8 @@
 """
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-Hexabot v1.0
-2013/07/03
+Hexabot v1.0.02
+2014/05/05
 Paul Willis
  
 All coordinates assume a screen resolution of 1366x768, and
@@ -17,9 +17,30 @@ Libraries:
     Pywin32 Build 218 for Python 2.7, 32 bit
     NumPy 1.7.1, 32 bit
 
----------------------------------------------------------------------------------
+Notes:
+    Before trying to read this code play Super Hexagon for a while.
+    You need a decent understanding of the objective and how to play.
+    
+    The overall shape is not always a hexagon.  In the first level it
+    changes to a pentagon and square so assumptions based on the shape
+    are thrown out without first identifying the shape which is inefficient.
+    
+    The size of the inner hexagon also varies as does the "angle" of the
+    entire screen so the shape is irregular.  This throws out many more
+    simplifications in reconstructing the field.
+
+Glossary:
+    hexagon - innermost shape
+    triangle - player
+    edge - any change in color on the screen
+    block - any edge that, if the triangle touches, causes the game to end
+    
+
+--------------------------------------------------------------------------------
 """
 
+# Libraries
+# ------------------
 import Image
 import ImageFilter
 import ImageGrab
@@ -28,31 +49,51 @@ import math
 from numpy import *
 import os
 import random
+import sys
 import time
 import win32api
 import win32con
 
-
+# ------------------
 # Globals
 # ------------------
- 
+
+
+# pixel offsets from upper left origin
 x_pad = 299
 y_pad = 144
+
+# window size
 x_size = 768
 y_size = 480
+
+# aspect ratio
 xy_ratio = float(x_size) / y_size
 
-n_rays = 360
+# how many rays to shoot out from center
+n_rays = 90
+
 
 # ------------------
 
 
 def main():
-
-    assemble()
     
-    # im = screen_grab()
-    # im.save(os.getcwd() + '\\Snap__' + str(int(time.time())) + '.png')
+    # open log file
+    old_stdout = sys.stdout
+    log_file = open('hexalog_' + str(int(time.time())) + '.txt','w')
+    sys.stdout = log_file
+    
+    assemble()
+    hexagon()
+    
+    # close log file
+    sys.stdout = old_stdout
+    log_file.close()
+    
+    # debug runtime
+    #im = screen_grab()
+    #im.save(os.getcwd() + '\\Snap__' + str(int(time.time())) + '.png')
 
 
 # Returns screen area of game
@@ -61,6 +102,7 @@ def screen_grab():
     box = (x_pad, y_pad, x_pad + x_size, y_pad + y_size)
     im = ImageGrab.grab(box)
     
+    # experimental filters, lots of computation for little benefit
     #im = ImageOps.equalize(im)
     #im = im.filter(ImageFilter.FIND_EDGES)
     
@@ -81,29 +123,37 @@ def assemble():
     # Create and traverse rays from center, saving triangle location.
     # i is the ray counter.
     for i in range(0, n_rays):
-
+        
+        # flag for finding the triangle
         triangle = 0
         
+        # when changes in color are seen these values change
         edge_count = 0
         edge_size = 0
         edge_size_last = 0
         
+        # center of game screen
         x_start = x_size / 2
         y_start = y_size / 2
         
+        # this is "theta" for the i'th ray in radians
         trig_entry = (2 * i * math.pi) / n_rays
         
+        # start ray traverse 1/35 of the way in, skip empty area
         x_last = int(round(x_start + ((cos(trig_entry) * x_size / 35))))
         y_last = int(round(y_start + ((sin(trig_entry) \
                                        * xy_ratio * y_size / 35))))
         
+        # end 1/7 of the way in, enough to find triangle and blocks
         x = int(round(x_start + ((cos(trig_entry) * x_size / 7))))
         y = int(round(y_start + ((sin(trig_entry) \
                                   * xy_ratio * y_size / 7))))
-
+        
+        # debug ray info
         print '{}:\t({}, {}) --> ({}, {})\t' \
             '{}'.format(i, x_last, y_last, x, y, trig_entry)
         
+        # construct the ray line
         line = get_line(x_last, y_last, x, y)
         line_length = len(line)
         
@@ -114,7 +164,7 @@ def assemble():
             
             R, G, B = im.getpixel(line[j])
 
-            # ray debug
+            #''' ray debug
             if j > 0 and n_rays < 120:
                 ray_R = int(round(255 * float(i) / n_rays))
                 ray_G = int(round(255 - (255 * float(i) / n_rays)))
@@ -122,12 +172,15 @@ def assemble():
                 if ray_B > 255:
                     ray_B = int(round(383 - (255 * (float(i) / n_rays))))
                 im.putpixel(line[j - 1], (ray_R, ray_G, ray_B))
+            #'''
             
             # Compare current and last pixel.
             if R_last != R and G_last != G and B_last != B:
                 
                 # Check edge size past hexagon.
                 if edge_count > 1:
+
+                    # FIX THIS CODE!!!
                     
                     # Ray pinging an edge, compare edge size to last ping.
                     if ((edge_size < (edge_size_last * 1.1) \
@@ -164,9 +217,13 @@ def assemble():
                 
         # Stop traversing rays after triangle is found.
         if triangle != 0:
-            break
-        
-    im.save(os.getcwd() + '\\SnapF_' + #debug rays
+            tri_loc = [x, y]
+            im.save(os.getcwd() + '\\SnapF+_' +
+                            str(int(time.time())) + '.png')
+            #break
+    
+    # debug rays    
+    im.save(os.getcwd() + '\\SnapF-_' +
                             str(int(time.time())) + '.png')
     '''
     # Create and traverse rays from triangle, saving edge locations.
@@ -179,6 +236,8 @@ def assemble():
         # Traverse ray to find the edge.  j is the pixel counter.
         for j in range (int((x_size / 2)), int(x_size / 5)):
             break'''
+
+def hexagon()
 
 
 # Bresenham's algorithm for traversing lines.
@@ -237,7 +296,17 @@ def leftUp():
     #print 'left release'
 
 
+# Deduplicate a list
+def uniq(input):
+    output = []
+    for x in input:
+        if x not in output:
+            output.append(x)
+    return output
 
+
+
+# Run the main function
 if __name__ == '__main__':
     main()
 
